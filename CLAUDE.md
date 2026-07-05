@@ -9,7 +9,7 @@ This is a **Doom Emacs private configuration** directory (`~/.config/doom`), on 
 The `literate` Doom module (see `init.el` `:config`) plus `org-auto-tangle` means **`config.org` is tangled to `config.el`**. Never edit `config.el`, `config.el.bak`, or `config.html` — they are generated/backup/export artifacts and will be overwritten.
 
 - Edit configuration in `config.org`. `org-auto-tangle-default` is `t`, so saving the buffer regenerates `config.el`; `doom sync` also tangles it.
-- Structure: one top-level `* HEADING` per topic (PROJECTILE, EGLOT, DAPE, PYTHON, CLAUDE CODE IDE, ...), each containing `#+begin_src emacs-lisp` blocks. Match this layout — add a new `*` section rather than appending loose code.
+- Structure: five top-level `*` groups — **CORE & DEFAULTS**, **UI & APPEARANCE**, **CODING / LSP**, **ORG**, **APPS & TOOLS** — each with per-topic `**` subsections (e.g. `** EGLOT`) containing `#+begin_src emacs-lisp` blocks. Add new config as a `**` under the fitting group, not a new top-level `*`.
 - Prefer Doom idioms already used throughout: `use-package!`, `map!` (with `:leader` and `:prefix`), `setq`, `add-hook!`, `after!`.
 
 ## The three entry files
