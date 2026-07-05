@@ -1,0 +1,7 @@
+# Tangled output of config.org (source of truth is the .org)
+/config.el
+# Editor/export artifacts
+/config.el.bak
+/config.html
+# Claude Code "remember" plugin session state — not part of the config
+/.remember/
