@@ -306,7 +306,7 @@ Keybindings to open files that I work with all the time using the find-file comm
 | PATH TO FILE                  | DESCRIPTION                 | KEYBINDING |
 |-------------------------------+-----------------------------+------------|
 | ~/.config/doom/start.org      | /Edit start.org (start page)/ | SPC = =    |
-| ~/nc/Org/agenda.org           | /Edit agenda file/            | SPC = a    |
+| ~/Documents/org/agenda.org           | /Edit agenda file/            | SPC = a    |
 | ~/.config/doom/config.org     | /Edit doom config.org/        | SPC = c    |
 | ~/.config/doom/init.el        | /Edit doom init.el/           | SPC = i    |
 | ~/.config/doom/packages.el    | /Edit doom packages.el/       | SPC = p    |
@@ -317,7 +317,7 @@ Keybindings to open files that I work with all the time using the find-file comm
 (map! :leader
       (:prefix ("=" . "open file")
        :desc "Edit start.org"        "=" #'(lambda () (interactive) (find-file "~/.config/doom/start.org"))
-       :desc "Edit agenda file"      "a" #'(lambda () (interactive) (find-file "~/nc/Org/agenda.org"))
+       :desc "Edit agenda file"      "a" #'(lambda () (interactive) (find-file "~/Documents/org/agenda.org"))
        :desc "Edit doom config.org"  "c" #'(lambda () (interactive) (find-file "~/.config/doom/config.org"))
        :desc "Edit doom init.el"     "i" #'(lambda () (interactive) (find-file "~/.config/doom/init.el"))
        :desc "Edit doom packages.el" "p" #'(lambda () (interactive) (find-file "~/.config/doom/packages.el"))))
@@ -901,7 +901,7 @@ Uses project-relative path by default. With prefix arg, use absolute path."
 ** Org directory
 Set =org-directory= before Org loads (must precede the package).
 #+begin_src emacs-lisp
-(setq org-directory "~/nc/Org/")
+(setq org-directory "~/Documents/org/")
 #+end_src
 
 ** ORG MODE
@@ -943,7 +943,7 @@ I wrapped most of this block in (after! org).  Without this, my settings might b
 *** Org-agenda
 #+begin_src emacs-lisp
 (after! org
-  (setq org-agenda-files '("~/nc/Org/agenda.org")))
+  (setq org-agenda-files '("~/Documents/org/agenda.org")))
 
 (setq
    ;; org-fancy-priorities-list '("[A]" "[B]" "[C]")
@@ -1179,7 +1179,7 @@ We need ox-man for "Org eXporting" to manpage format and ox-gemini for exporting
 
 *** Org-journal
 #+begin_src emacs-lisp
-(setq org-journal-dir "~/nc/Org/journal/"
+(setq org-journal-dir "~/Documents/org/journal/"
       org-journal-date-prefix "* "
       org-journal-time-prefix "** "
       org-journal-date-format "%B %d, %Y (%A) "
@@ -1321,7 +1321,7 @@ We need ox-man for "Org eXporting" to manpage format and ox-gemini for exporting
 
 #+begin_src emacs-lisp
 (after! org
-  (setq org-roam-directory "~/nc/Org/roam/"
+  (setq org-roam-directory "~/Documents/org/roam/"
         org-roam-graph-viewer "/usr/bin/brave"))
 
 (map! :leader
@@ -1558,25 +1558,10 @@ An RSS newsfeed reader for Emacs.
 (evil-define-key 'normal elfeed-search-mode-map
   (kbd "J") 'elfeed-goodies/split-show-next
   (kbd "K") 'elfeed-goodies/split-show-prev)
-(setq elfeed-feeds (quote
-                    (("https://www.reddit.com/r/linux.rss" reddit linux)
-                     ("https://www.reddit.com/r/commandline.rss" reddit commandline)
-                     ("https://www.reddit.com/r/distrotube.rss" reddit distrotube)
-                     ("https://www.reddit.com/r/emacs.rss" reddit emacs)
-                     ("https://github.com/doomemacs/doomemacs/releases.atom" emacs doom)
-                     ("https://www.gamingonlinux.com/article_rss.php" gaming linux)
-                     ("https://hackaday.com/blog/feed/" hackaday linux)
-                     ("https://opensource.com/feed" opensource linux)
-                     ("https://linux.softpedia.com/backend.xml" softpedia linux)
-                     ("https://itsfoss.com/feed/" itsfoss linux)
-                     ("https://www.zdnet.com/topic/linux/rss.xml" zdnet linux)
-                     ("https://www.phoronix.com/rss.php" phoronix linux)
-                     ("http://feeds.feedburner.com/d0od" omgubuntu linux)
-                     ("https://www.computerworld.com/index.rss" computerworld linux)
-                     ("https://www.networkworld.com/category/linux/index.rss" networkworld linux)
-                     ("https://www.techrepublic.com/rssfeeds/topic/open-source/" techrepublic linux)
-                     ("https://betanews.com/feed" betanews linux)
-                     ("http://lxer.com/module/newswire/headlines.rss" lxer linux))))
+;; Feeds live in `org-directory'/elfeed.org: the `(rss +org)' flag pulls in
+;; elfeed-org, which reads them from that outline and populates `elfeed-feeds'
+;; on refresh. Managing them there (instead of a manual `elfeed-feeds' setq)
+;; keeps a single source of truth.
 #+END_SRC
 
 
