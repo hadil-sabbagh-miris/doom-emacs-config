@@ -1958,3 +1958,74 @@ Doom's env snapshot (=doom sync --env= after exporting it in your shell) for
         gptel-model 'claude-sonnet-4-5
         gptel-backend (gptel-get-backend "Claude")))
 #+end_src
+
+** PGMACS
+[[https://github.com/emarsden/pgmacs][PGmacs]] is a magit-style browser/editor for PostgreSQL databases, built on
+[[https://github.com/emarsden/pg-el][pg.el]] — a pure-Elisp implementation of the PostgreSQL frontend/backend wire
+protocol (no libpq, no compiled module).  =pg= is a hard dependency of =pgmacs=
+and is pulled in automatically; it needs no configuration of its own, so there is
+no =use-package!= block for it.
+
+Launch with =SPC o d= (or =M-x pgmacs=), which opens a widget login buffer
+pre-filled from =PGDATABASE=/=PGHOST=/=PGUSER=/… environment variables.
+=pgmacs-open-uri= instead takes a =postgresql://user:pass@host:port/dbname=
+connection string non-interactively.
+
+*** No background worker thread
+PGmacs defaults =pgmacs-use-worker-thread= to =t=: on connect, =pgmacs-open= spawns
+an Emacs Lisp thread that opens a *second* database connection and drives it with
+blocking network I/O in a =while t= loop.  Emacs's Lisp threads are cooperative and
+share one global lock, so a thread parked in =accept-process-output= can starve the
+main thread and freeze the whole editor — which is exactly what happens right after
+you click *Connect*.  (Upstream even ships a "restart the worker in case it died"
+workaround, a sign this path is fragile.)  We set it to =nil= so every metadata
+query runs synchronously on the main thread: slightly less responsive on slow
+links, but it never hangs.
+
+*** Evil state
+Like mu4e (see that section), we run without evil-collection, so PGmacs's
+navigation buffers would open in evil *normal* state, where single keys (=RET=,
+=d=, =e=, =S=, =DEL=, =+=…) are shadowed by evil motions and its native table
+commands become unreachable.  PGmacs uses one major mode — =pgmacs-mode= — for
+*all* its browsing views (table list, row list, process list, …), swapping only
+the local keymap per view, so forcing that single mode into *emacs* state hands
+every key back to PGmacs.
+
+The login, cell-edit and insert-row buffers are a *separate* problem: they are
+plain =widget= buffers left in =fundamental-mode=, **not** =pgmacs-mode=, so
+=evil-set-initial-state= never reaches them and evil opens them in its default
+*normal* state — letters fire motions instead of typing into the fields.  Since
+=evil-set-initial-state= keys off major mode only, we match these buffers by *name*
+(they are all =*PGmacs …widget*=) via =evil-buffer-regexps= and force *emacs* state
+so =widget-keymap= receives every key.
+
+#+begin_src emacs-lisp
+(use-package! pgmacs
+  :commands (pgmacs pgmacs-open pgmacs-open-uri pgmacs-open-string)
+  :init
+  ;; Run queries on the main thread — the background worker thread deadlocks Emacs
+  ;; on connect (see "No background worker thread" above).
+  (setq pgmacs-use-worker-thread nil)
+  (map! :leader
+        (:prefix ("o" . "open")
+         :desc "PGmacs (Postgres)" "d" #'pgmacs))
+  :config
+  ;; No evil-collection here, so hand every key back to PGmacs's own keymaps.
+  (evil-set-initial-state 'pgmacs-mode 'emacs)
+  ;; The login/cell-edit/insert-row widget buffers aren't pgmacs-mode, so the line
+  ;; above misses them and evil leaves them in *normal* state.  Match by buffer name
+  ;; and force emacs state so their widget fields are directly editable.
+  (add-to-list 'evil-buffer-regexps '("\\*PGmacs.*widget\\*" . emacs)))
+
+;; PGmacs's upstream faces assume a light background and a proportional font,
+;; which look broken on our dark doom-one theme: `pgmacs-table-data' hardcodes
+;; a *black* foreground (invisible on the #282c34 background) and `pgmacstbl'
+;; (the table's base face) inherits `variable-pitch', so cell columns render in
+;; a proportional font and no longer line up under the monospace header.
+;; Re-base both on `fixed-pitch' and drop the black foreground so it inherits
+;; the theme's default color.  `custom-set-faces!' is theme-aware, so this is
+;; reapplied if you switch themes.
+(custom-set-faces!
+  '(pgmacstbl :inherit fixed-pitch)
+  '(pgmacs-table-data :inherit fixed-pitch))
+#+end_src
