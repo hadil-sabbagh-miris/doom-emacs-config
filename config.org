@@ -409,23 +409,21 @@ A minimap sidebar displaying a smaller version of the current buffer on either t
 #+end_src
 
 
-** NEOTREE
-Neotree is a file tree viewer.  When you open neotree, it jumps to the current file thanks to neo-smart-open.  The neo-window-fixed-size setting makes the neotree width be adjustable.  Doom Emacs had no keybindings set for neotree.  Since Doom Emacs uses 'SPC t' for 'toggle' keybindings, I used 'SPC t n' for toggle-neotree.
+** TREEMACS
+Treemacs is a project-tree drawer (enabled in ~init.el~).  ~treemacs-follow-mode~ keeps the tree pointed at the current file, and unlocking ~treemacs-width-is-initially-locked~ makes the drawer width adjustable.  Since Doom Emacs uses 'SPC t' for 'toggle' keybindings, I used 'SPC t n' to toggle the tree.  (Doom also binds ~+treemacs/toggle~ to 'SPC o p' out of the box.)
 
-| COMMAND        | DESCRIPTION               | KEYBINDING |
-|----------------+---------------------------+------------|
-| neotree-toggle | /Toggle neotree/            | SPC t n    |
-| neotree- dir   | /Open directory in neotree/ | SPC d n    |
+| COMMAND                                        | DESCRIPTION                     | KEYBINDING |
+|------------------------------------------------+---------------------------------+------------|
+| +treemacs/toggle                               | /Toggle treemacs/                 | SPC t n    |
+| treemacs-add-and-display-current-project-exclusively | /Show current project in treemacs/ | SPC d n    |
 
 #+BEGIN_SRC emacs-lisp
-(after! neotree
-  (setq neo-smart-open t
-        neo-window-fixed-size nil))
-(after! doom-themes
-  (setq doom-neotree-enable-variable-pitch t))
+(after! treemacs
+  (setq treemacs-width-is-initially-locked nil)
+  (treemacs-follow-mode 1))
 (map! :leader
-      :desc "Toggle neotree file viewer" "t n" #'neotree-toggle
-      :desc "Open directory in neotree"  "d n" #'neotree-dir)
+      :desc "Toggle treemacs file viewer" "t n" #'+treemacs/toggle
+      :desc "Show project in treemacs"    "d n" #'treemacs-add-and-display-current-project-exclusively)
 #+END_SRC
 
 
@@ -854,7 +852,7 @@ Uses project-relative path by default. With prefix arg, use absolute path."
         ;; Window placement
         claude-code-ide-use-side-window t
         claude-code-ide-window-side 'right
-        claude-code-ide-window-width 110
+        claude-code-ide-window-width 100
         claude-code-ide-focus-on-open t
         ;; Ediff-based diffs (matches the openDiff path)
         claude-code-ide-use-ide-diff t
@@ -1497,8 +1495,11 @@ Dired is the file manager within Emacs.  Below, I setup keybindings for image pr
   (kbd "* /") 'dired-mark-directories
   (kbd "; d") 'epa-dired-do-decrypt
   (kbd "; e") 'epa-dired-do-encrypt)
-;; Get file icons in dired
-(add-hook 'dired-mode-hook 'all-the-icons-dired-mode)
+;; File icons + the subtree/tree column come from Doom's `(dired +icons)' flag,
+;; which renders them through dirvish's `nerd-icons'/`subtree-state' attributes.
+;; The old `all-the-icons-dired-mode' hook here is obsolete: that function is now
+;; void (Doom dropped the package), so the hook errored on every dired open and
+;; aborted dirvish's display setup — breaking the icon/tree column entirely.
 ;; With dired-open plugin, you can launch external programs for certain extensions
 ;; For example, I set all .png files to open in 'sxiv' and all .mp4 files to open in 'mpv'
 (setq dired-open-extensions '(("gif" . "sxiv")
@@ -1540,6 +1541,15 @@ ln -s ~/.local/share/Trash .
 An RSS newsfeed reader for Emacs.
 
 #+BEGIN_SRC emacs-lisp
+;; Compatibility shim: elfeed-goodies (unmaintained) still calls
+;; `elfeed-search--intro-header', which elfeed 4.0.1 removed. Without this the
+;; empty-DB header path signals `void-function' on every redisplay (spamming
+;; *Messages* until the first feed fetch). Delegate to elfeed's current header.
+(unless (fboundp 'elfeed-search--intro-header)
+  (defun elfeed-search--intro-header ()
+    "Shim for `elfeed-goodies' on elfeed >= 4.0; see `elfeed-search--header'."
+    (elfeed-search--header)))
+
 (setq elfeed-goodies/entry-pane-size 0.5)
 
 (evil-define-key 'normal elfeed-show-mode-map
@@ -1553,6 +1563,7 @@ An RSS newsfeed reader for Emacs.
                      ("https://www.reddit.com/r/commandline.rss" reddit commandline)
                      ("https://www.reddit.com/r/distrotube.rss" reddit distrotube)
                      ("https://www.reddit.com/r/emacs.rss" reddit emacs)
+                     ("https://github.com/doomemacs/doomemacs/releases.atom" emacs doom)
                      ("https://www.gamingonlinux.com/article_rss.php" gaming linux)
                      ("https://hackaday.com/blog/feed/" hackaday linux)
                      ("https://opensource.com/feed" opensource linux)
@@ -1625,6 +1636,108 @@ ERC is a built-in Emacs IRC client.
       )
 #+end_src
 
+
+** MU4E
+mu4e is a Gmail-backed mail client.  It only *reads* a local Maildir; the ~mbsync~ (isync) command in ~mu4e-get-mail-command~ pulls IMAP into ~~/.mail/gmail~, and ~msmtp~ sends.  Credentials for both live in the macOS Keychain (see ~~/.mbsyncrc~ and ~~/.msmtprc~), so no App Password is stored in plain text.  The ~+gmail~ module flag makes archive/trash defer to Gmail's own semantics.  Open the mail dashboard with 'SPC o m'.
+
+| COMMAND | DESCRIPTION       | KEYBINDING |
+|---------+-------------------+------------|
+| =mu4e=    | /Open mail/         | SPC o m    |
+| mu4e-compose-new | /Compose mail/ | SPC o M    |
+
+#+begin_src emacs-lisp
+;; Homebrew's `mu' installs mu4e into a *nested* site-lisp subdir
+;; (<prefix>/share/emacs/site-lisp/mu/mu4e).  Emacs.app only auto-adds the
+;; top-level site-lisp to `load-path', so mu4e is one level too deep to be
+;; found, and Doom's mu4e module (which doesn't bundle mu4e — it ships with the
+;; `mu' binary) fails to load: "Cannot open load file: mu4e".  Derive the dir
+;; from the `mu' binary so it survives prefix/version changes.
+(when-let* ((mu (executable-find "mu"))
+            (dir (expand-file-name "../share/emacs/site-lisp/mu/mu4e"
+                                   (file-name-directory mu)))
+            ((file-directory-p dir)))
+  (add-load-path! dir))
+
+;; Put Homebrew's info dir on `Info-directory-list' so `C-h i' / `M-x info'
+;; can find the mu4e manual (mu4e.info.gz) — Emacs.app doesn't inherit the
+;; shell INFOPATH, so bundled-tool manuals are otherwise invisible.
+(after! info
+  (when (file-directory-p "/opt/homebrew/share/info")
+    (add-to-list 'Info-directory-list "/opt/homebrew/share/info")))
+
+(after! mu4e
+  (setq mu4e-maildir "~/.mail/gmail"
+        mu4e-get-mail-command "mbsync gmail"
+        mu4e-update-interval 300              ; auto-fetch every 5 minutes
+        mu4e-index-cleanup t
+        mu4e-index-lazy-check t
+        mu4e-change-filenames-when-moving t   ; required for mbsync
+        mu4e-context-policy 'pick-first
+        ;; Identity
+        user-mail-address "hadilsabbagh18@gmail.com"
+        user-full-name "Hadil Sabbagh"
+        ;; Gmail's special folders (the +gmail flag handles the rest)
+        mu4e-sent-folder   "/[Gmail]/Sent Mail"
+        mu4e-drafts-folder "/[Gmail]/Drafts"
+        mu4e-trash-folder  "/[Gmail]/Trash"
+        mu4e-refile-folder "/[Gmail]/All Mail"
+        ;; Send via the installed msmtp binary (reads Keychain, see ~/.msmtprc)
+        sendmail-program (executable-find "msmtp")
+        send-mail-function #'smtpmail-send-it
+        message-sendmail-f-is-evil t
+        message-sendmail-extra-arguments '("--read-envelope-from")
+        message-send-mail-function #'message-send-mail-with-sendmail))
+
+;; We dropped the evil `+everywhere' flag (no evil-collection), so mu4e's
+;; navigation buffers would otherwise open in evil *normal* state, where
+;; s/c/d/x/r shadow mu4e's native single-key commands.  Force the reader
+;; modes into emacs state so the built-in bindings work unshadowed.  Compose
+;; is left in the default (normal) state so evil editing still applies there.
+(after! mu4e
+  (dolist (mode '(mu4e-main-mode mu4e-headers-mode mu4e-view-mode))
+    (evil-set-initial-state mode 'emacs)))
+
+(map! :leader
+      :desc "Open mu4e (mail)" "o m" #'mu4e
+      :desc "Compose mail"     "o M" #'mu4e-compose-new)
+#+end_src
+
+*** New-mail desktop notifications
+=mu4e-alert= is unmaintained and breaks against mu 1.14, so we notify with a
+small hook on top of =alert= (see the ~alert~ block, which routes to
+~terminal-notifier~ on macOS).  It fires on ~mu4e-index-updated-hook~ (after each
+background fetch) whenever the unread INBOX count *rises*.
+
+For notifications to arrive without the mu4e UI open, mu4e must be fetching in
+the background — ~(mu4e t)~ starts it hidden.  We defer that to
+~doom-after-init-hook~ so a mail process isn't spawned before Emacs is ready.
+
+#+begin_src emacs-lisp
+(after! mu4e
+  (defvar my/mu4e-last-unread nil
+    "Unread INBOX count at the previous index; nil until first measured.")
+
+  (defun my/mu4e-unread-count ()
+    "Return the number of unread messages in the INBOX via the mu index."
+    (string-to-number
+     (shell-command-to-string
+      "mu find maildir:/Inbox flag:unread --fields i 2>/dev/null | wc -l")))
+
+  (defun my/mu4e-notify-new-mail ()
+    "Post a desktop notification when the unread INBOX count rises."
+    (let ((n (my/mu4e-unread-count)))
+      (when (and my/mu4e-last-unread (> n my/mu4e-last-unread))
+        (let ((new (- n my/mu4e-last-unread)))
+          (alert (format "%d new message%s" new (if (= new 1) "" "s"))
+                 :title "mu4e")))
+      (setq my/mu4e-last-unread n)))
+
+  (add-hook 'mu4e-index-updated-hook #'my/mu4e-notify-new-mail))
+
+;; Start mu4e hidden after startup so mail is fetched (every
+;; `mu4e-update-interval' seconds) and notifications fire without the UI open.
+(add-hook 'doom-after-init-hook (lambda () (mu4e t)))
+#+end_src
 
 ** EWW
 EWW is the Emacs Web Wowser, the builtin browser in Emacs.  Below I set urls to open in a specific browser (eww) with browse-url-browser-function.  By default, Doom Emacs does not use 'SPC e' for anything, so I choose to use the format 'SPC e' plus 'key' for these (I also use 'SPC e' for 'eval' keybindings).  I chose to use 'SPC s w' for eww-search-words because Doom Emacs uses 'SPC s' for 'search' commands.
