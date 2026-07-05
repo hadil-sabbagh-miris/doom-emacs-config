@@ -62,7 +62,7 @@
 #+begin_src emacs-lisp
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/org/")
+(setq org-directory "~/nc/Org/")
 #+end_src
 Whenever you reconfigure a package, make sure to wrap your config in an
 `after!' block, otherwise Doom's defaults may override your settings. E.g.
@@ -112,7 +112,6 @@ they are implemented.
 ;; Force VC to refresh branch info on auto-revert
 (setq auto-revert-check-vc-info t)
 #+end_src
-#+end_src
 * SUBWORD MODE
 #+begin_src emacs-lisp
 (global-subword-mode 1)
@@ -154,11 +153,6 @@ they are implemented.
          :desc "Find references"  "r" #'xref-find-references
          :desc "Rename symbol"    "R" #'eglot-rename
          :desc "Format buffer"    "f" #'eglot-format)))
-
-(after! eglot
-  (add-to-list 'eglot-server-programs
-               '((python-mode python-ts-mode)
-                 . ("pyright-langserver" "--stdio")))
 #+end_src
 * DAPE
 #+begin_src emacs-lisp
@@ -240,14 +234,9 @@ they are implemented.
     (setf (alist-get 'ruff apheleia-formatters)
           '("ruff" "format" "--stdin-filename" filepath "-"))
     (setf (alist-get 'python-mode apheleia-mode-alist) '(ruff-isort ruff))
-    (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff))))
+    (setf (alist-get 'python-ts-mode apheleia-mode-alist) '(ruff-isort ruff)))
 
-(add-hook 'python-mode-hook #'eglot-ensure)
-;;; Python + Eglot + Corfu
-
-(after! python
-  ;; Ensure Python buffers use eglot
-  (add-hook 'python-mode-hook #'eglot-ensure))
+;; python-mode and python-ts-mode already get eglot via the eglot :hook above.
 
 (after! eglot
   ;; Prefer pyright if available, otherwise pylsp.
@@ -481,7 +470,7 @@ Bookmarks are somewhat like registers in that they record positions you can jump
       (:prefix ("b". "buffer")
        :desc "List bookmarks"                          "L" #'list-bookmarks
        :desc "Set bookmark"                            "m" #'bookmark-set
-       :desc "Delete bookmark"                         "M" #'bookmark-set
+       :desc "Delete bookmark"                         "M" #'bookmark-delete
        :desc "Save current bookmarks to bookmark file" "w" #'bookmark-save))
 #+END_SRC
 
@@ -722,7 +711,7 @@ Dired is the file manager within Emacs.  Below, I setup keybindings for image pr
   (kbd "P") 'dired-do-print
   (kbd "R") 'dired-do-rename
   (kbd "T") 'dired-do-touch
-  (kbd "Y") 'dired-copy-filenamecopy-filename-as-kill ; copies filename to kill ring.
+  (kbd "Y") 'dired-copy-filename-as-kill ; copies filename to kill ring.
   (kbd "Z") 'dired-do-compress
   (kbd "+") 'dired-create-directory
   (kbd "-") 'dired-do-kill-lines
@@ -763,8 +752,7 @@ If peep-dired is enabled, you will get image previews as you go up/down with 'j'
 
 ** Making deleted files go to trash can
 #+begin_src emacs-lisp
-(setq delete-by-moving-to-trash t
-      trash-directory "~/.local/share/Trash/files/")
+(setq trash-directory "~/.local/share/Trash/files/")
 #+end_src
 
 =NOTE=: For convenience, you may want to create a symlink to 'local/share/Trash' in your home directory:
@@ -1050,7 +1038,6 @@ I set comment-line to 'SPC TAB TAB' which is a rather comfortable keybinding for
 | toggle-truncate-lines    | /Toggle truncate lines/                     | SPC t t     |
 
 #+BEGIN_SRC emacs-lisp
-(setq display-line-numbers-type t)
 (map! :leader
       :desc "Comment or uncomment lines"      "TAB TAB" #'comment-line
       (:prefix ("t" . "toggle")
@@ -1144,7 +1131,7 @@ Keybindings to open files that I work with all the time using the find-file comm
 #+BEGIN_SRC emacs-lisp
 (map! :leader
       (:prefix ("=" . "open file")
-       :desc "Edit agenda file"      "=" #'(lambda () (interactive) (find-file "~/.config/doom/start.org"))
+       :desc "Edit start.org"        "=" #'(lambda () (interactive) (find-file "~/.config/doom/start.org"))
        :desc "Edit agenda file"      "a" #'(lambda () (interactive) (find-file "~/nc/Org/agenda.org"))
        :desc "Edit doom config.org"  "c" #'(lambda () (interactive) (find-file "~/.config/doom/config.org"))
        :desc "Edit doom init.el"     "i" #'(lambda () (interactive) (find-file "~/.config/doom/init.el"))
@@ -1164,8 +1151,7 @@ I wrapped most of this block in (after! org).  Without this, my settings might b
 (map! :leader
       :desc "Org babel tangle" "m B" #'org-babel-tangle)
 (after! org
-  (setq org-directory "~/nc/Org/"
-        org-default-notes-file (expand-file-name "notes.org" org-directory)
+  (setq org-default-notes-file (expand-file-name "notes.org" org-directory)
         org-ellipsis " ▼ "
         org-superstar-headline-bullets-list '("◉" "●" "○" "◆" "●" "○" "◆")
         org-superstar-itembullet-alist '((?+ . ?➤) (?- . ?✦)) ; changes +/- symbols in item lists
