@@ -582,7 +582,10 @@ Pin both faces to terminal parents to break the loop.
          (python-mode . eglot-ensure)
          (python-ts-mode . eglot-ensure)
          (sh-mode . eglot-ensure)
-         (bash-ts-mode . eglot-ensure)) ;; bash, zsh, etc.
+         (bash-ts-mode . eglot-ensure) ;; bash, zsh, etc.
+         (clojure-mode . eglot-ensure)
+         (clojurec-mode . eglot-ensure)
+         (clojurescript-mode . eglot-ensure))
   :config
   ;; Optional: Tweak formatting and UI
   (setq eglot-events-buffer-size 0)
@@ -675,6 +678,16 @@ Pin both faces to terminal parents to break the loop.
                  :cwd "/Users/hadil-sabbagh/projects/aqua/webservices"
                  :program "/Users/hadil-sabbagh/projects/aqua/webservices/cmd/server")))
 
+#+end_src
+
+** CLOJURE
+#+begin_src emacs-lisp
+;; clojure-lsp is wired through EGLOT (see the EGLOT block); the +lsp flag on the
+;; clojure module in init.el is what makes Doom install and register it.
+(after! clojure-mode
+  (dolist (hook '(clojure-mode-hook clojurec-mode-hook clojurescript-mode-hook))
+    (add-hook hook #'rainbow-delimiters-mode)
+    (add-hook hook #'smartparens-strict-mode)))
 #+end_src
 
 ** PYTHON
