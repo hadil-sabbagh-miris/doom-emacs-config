@@ -1161,8 +1161,12 @@ I have created an interactive function for each color scheme (M-x dt/org-colors-
     (set-face-attribute (nth 0 face) nil :font doom-variable-pitch-font :weight (nth 3 face) :height (nth 1 face) :foreground (nth 2 face)))
     (set-face-attribute 'org-table nil :font doom-font :weight 'normal :height 1.0 :foreground "#bfafdf"))
 
-;; Load our desired dt/org-colors-* theme on startup
-(dt/org-colors-doom-one)
+;; Load our desired dt/org-colors-* theme on startup.
+;; Deferred until org loads so the `org-level-*'/`org-table' faces exist;
+;; calling it at config-load time errors ("Invalid face: org-level-1") on
+;; Emacs HEAD, where set-face-attribute rejects not-yet-defined faces.
+(after! org
+  (dt/org-colors-doom-one))
 #+end_src
 
 *** Org-export

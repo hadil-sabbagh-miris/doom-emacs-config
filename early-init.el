@@ -45,6 +45,19 @@ Includes Homebrew GCC paths and CommandLineTools SDK libraries."
 
     (setenv "LIBRARY_PATH" (mapconcat #'identity unique-paths ":"))))
 
-;; Set up library paths for native compilation on macOS.
+(defun setup-macos-exec-path ()
+  "Put Homebrew's bin dirs on `exec-path'/PATH.
+GUI-launched Emacs on macOS doesn't inherit the shell PATH, so Homebrew
+binaries (aspell, git, formatters, LSP servers, …) aren't found and features
+silently fall back to broken defaults (e.g. flyspell trying to run the
+non-existent `ispell'). Running before Doom loads lets its module detection
+\(`executable-find') see these tools."
+  (dolist (dir '("/opt/homebrew/bin" "/opt/homebrew/sbin"))
+    (when (file-directory-p dir)
+      (add-to-list 'exec-path dir)
+      (setenv "PATH" (concat dir path-separator (getenv "PATH"))))))
+
+;; Set up exec-path and library paths for native compilation on macOS.
 (when (eq system-type 'darwin)
+  (setup-macos-exec-path)
   (setup-macos-native-comp-library-paths))
