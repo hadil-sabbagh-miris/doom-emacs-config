@@ -2015,7 +2015,16 @@ so =widget-keymap= receives every key.
   ;; The login/cell-edit/insert-row widget buffers aren't pgmacs-mode, so the line
   ;; above misses them and evil leaves them in *normal* state.  Match by buffer name
   ;; and force emacs state so their widget fields are directly editable.
-  (add-to-list 'evil-buffer-regexps '("\\*PGmacs.*widget\\*" . emacs)))
+  (add-to-list 'evil-buffer-regexps '("\\*PGmacs.*widget\\*" . emacs))
+  ;; Upstream `pgmacs' switch-to-buffers the login buffer and inserts its widgets
+  ;; without ever erasing it (it resets locals/overlays but not text), so a second
+  ;; `SPC o d' stacks another whole copy of the form on top of the first.  Kill any
+  ;; stale widget buffer first so each invocation renders the form exactly once.
+  (defadvice! +pgmacs--fresh-login-buffer-a (&rest _)
+    "Discard a stale `*PGmacs connection widget*' buffer before `pgmacs' redraws."
+    :before #'pgmacs
+    (when-let* ((buf (get-buffer "*PGmacs connection widget*")))
+      (kill-buffer buf))))
 
 ;; PGmacs's upstream faces assume a light background and a proportional font,
 ;; which look broken on our dark doom-one theme: `pgmacs-table-data' hardcodes
