@@ -72,6 +72,7 @@
   :recipe (:host github :repo "manzaltu/claude-code-ide.el"))
 (package! protobuf-mode)
 (package! eca :recipe (:host github :repo "editor-code-assistant/eca-emacs" :files ("*.el")))
+(package! gptel)
 (package! ghostel :recipe (:host github :repo "dakra/ghostel"))
 (package! flycheck-aspell)
 (package! calfw)

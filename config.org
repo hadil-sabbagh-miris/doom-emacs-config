@@ -870,31 +870,86 @@ Uses project-relative path by default. With prefix arg, use absolute path."
   ;; manager to stay out of the way so the two don't fight over placement.
   (set-popup-rule! "^\\*claude-code" :ignore t)
 
-  ;; Mouse wheel in Claude buffers: with `no-flicker' on (= Claude Code
-  ;; fullscreen rendering), vterm only holds the current viewport and
-  ;; doesn't forward mouse-wheel escape sequences to the pty. Route wheel
-  ;; events to Meta+k / Meta+j, which ~/.claude/keybindings.json binds to
-  ;; `scroll:lineUp' / `scroll:lineDown' in the Scroll context — gives a
-  ;; line-at-a-time feel instead of PgUp/PgDn's half-page jumps.
-  (defun my/claude-code-ide-wheel-up (_e)
+  ;; Mouse wheel throttle in Claude buffers. macOS momentum scrolling emits a
+  ;; flood of wheel events per flick, so Claude's transcript scrolls far too
+  ;; fast. The knob below decimates them: only one of every
+  ;; `my/claude-code-ide-wheel-divisor' events is acted on. Raise the divisor
+  ;; to slow scrolling further; set it to 1 for the native speed.
+  ;;
+  ;; The hard part is *where* to intercept under the ghostel backend. Ghostel
+  ;; grabs the wheel through `emulation-mode-map-alists' — the highest keymap
+  ;; tier — so terminal apps (vim, htop) can see it; it then forwards the
+  ;; wheel to the pty as mouse button 4/5, which is what actually scrolls
+  ;; Claude. A buffer-local `local-set-key' can never outrank that, which is
+  ;; why the divisor used to have no effect on ghostel. So we register our OWN
+  ;; emulation entry *ahead* of ghostel's, gated on a buffer-local flag set
+  ;; only in Claude buffers; for the one-in-N events we keep, we re-inject them
+  ;; so ghostel's own handler forwards them normally (decimation, not
+  ;; re-encoding — robust to however ghostel scrolls). Under vterm there is no
+  ;; such competitor, so we synthesize Meta+j/Meta+k there instead.
+  (defvar my/claude-code-ide-wheel-divisor 6
+    "Wheel events per acted-on scroll step in Claude buffers. Higher = slower.")
+  (defvar-local my/claude-code-ide--wheel-accum 0
+    "Signed accumulator of wheel events since the last acted-on step.")
+  (defvar-local my/claude-code-ide--wheel-intercept nil
+    "Non-nil in Claude buffers to activate the wheel-throttle emulation map.")
+  (defun my/claude-code-ide--reenable-intercept ()
+    "Re-arm the throttle intercept after one re-injected wheel event."
+    (setq my/claude-code-ide--wheel-intercept t)
+    (remove-hook 'pre-command-hook #'my/claude-code-ide--reenable-intercept t))
+  (defun my/claude-code-ide--wheel (event dir)
+    "Act on one of every `my/claude-code-ide-wheel-divisor' wheel events.
+EVENT is the wheel event; DIR is -1 (up) or +1 (down)."
+    ;; Reset on a direction flip so reversing responds immediately.
+    (unless (eq (cl-signum my/claude-code-ide--wheel-accum) dir)
+      (setq my/claude-code-ide--wheel-accum 0))
+    (cl-incf my/claude-code-ide--wheel-accum dir)
+    (when (>= (abs my/claude-code-ide--wheel-accum)
+              my/claude-code-ide-wheel-divisor)
+      (setq my/claude-code-ide--wheel-accum 0)
+      (cond
+       ;; Ghostel: let this one event fall through to ghostel's own wheel
+       ;; handler (which forwards it to the pty). Disable our higher-priority
+       ;; intercept, re-inject the event, and re-arm on the next command.
+       ((derived-mode-p 'ghostel-mode)
+        (setq my/claude-code-ide--wheel-intercept nil)
+        (setq unread-command-events (cons event unread-command-events))
+        (add-hook 'pre-command-hook #'my/claude-code-ide--reenable-intercept nil t))
+       ;; Vterm: synthesize a scroll keystroke instead.
+       ((derived-mode-p 'vterm-mode)
+        (vterm-send-key (if (> dir 0) "j" "k") nil t nil)))))
+  (defun my/claude-code-ide-wheel-up (event)
     (interactive "e")
-    (vterm-send-key "k" nil t nil))   ; Meta+k → scroll:lineUp
-  (defun my/claude-code-ide-wheel-down (_e)
+    (my/claude-code-ide--wheel event -1))
+  (defun my/claude-code-ide-wheel-down (event)
     (interactive "e")
-    (vterm-send-key "j" nil t nil))   ; Meta+j → scroll:lineDown
+    (my/claude-code-ide--wheel event 1))
+  (defvar-keymap my/claude-code-ide--wheel-map
+    :doc "High-priority wheel-throttle keymap for Claude buffers."
+    "<wheel-up>"          #'my/claude-code-ide-wheel-up
+    "<double-wheel-up>"   #'my/claude-code-ide-wheel-up
+    "<triple-wheel-up>"   #'my/claude-code-ide-wheel-up
+    "<wheel-down>"        #'my/claude-code-ide-wheel-down
+    "<double-wheel-down>" #'my/claude-code-ide-wheel-down
+    "<triple-wheel-down>" #'my/claude-code-ide-wheel-down)
+  (defvar my/claude-code-ide--wheel-emulation-alist
+    `((my/claude-code-ide--wheel-intercept . ,my/claude-code-ide--wheel-map))
+    "`emulation-mode-map-alists' entry; active per-buffer via the flag above.")
   (advice-add
    'claude-code-ide--setup-terminal-keybindings :after
    (defun my/claude-code-ide-bind-wheel ()
-     ;; Only needed when no-flicker is on — Claude manages its own
-     ;; transcript so native Emacs scroll is inert. With no-flicker off,
-     ;; vterm holds real scrollback and native wheel scroll just works.
+     ;; Only meaningful with no-flicker on (Claude owns the transcript; native
+     ;; Emacs scroll is inert). Arm our throttle in this buffer and re-assert
+     ;; our emulation entry at the front — ghostel prepends its own entry when
+     ;; it loads (after our config), and this advice runs per session *after*
+     ;; ghostel is up, so this is where we can reliably win the priority race.
      (when (and claude-code-ide-no-flicker
-                (eq claude-code-ide-terminal-backend 'vterm)
-                (derived-mode-p 'vterm-mode))
-       (dolist (ev '([wheel-up] [double-wheel-up] [triple-wheel-up]))
-         (local-set-key ev #'my/claude-code-ide-wheel-up))
-       (dolist (ev '([wheel-down] [double-wheel-down] [triple-wheel-down]))
-         (local-set-key ev #'my/claude-code-ide-wheel-down))))))
+                (derived-mode-p 'vterm-mode 'ghostel-mode))
+       (setq my/claude-code-ide--wheel-intercept t)
+       (setq emulation-mode-map-alists
+             (cons 'my/claude-code-ide--wheel-emulation-alist
+                   (delq 'my/claude-code-ide--wheel-emulation-alist
+                         emulation-mode-map-alists)))))))
 #+end_src
 
 * ORG
@@ -1867,4 +1922,39 @@ Perspective provides multiple named workspaces (or "perspectives") in Emacs, sim
       :desc "Switch to previous perspective"   "[" #'persp-prev
       :desc "Add a buffer current perspective" "+" #'persp-add-buffer
       :desc "Remove perspective by name"       "-" #'persp-remove-by-name)
+#+end_src
+
+
+** GPTEL
+[[https://github.com/karthink/gptel][gptel]] is a simple, no-frills LLM client for Emacs.  A =gptel= buffer is a
+regular chat buffer; =gptel-send= (or =SPC L s=) submits the buffer/region and
+streams the reply inline.  =gptel-menu= (=SPC L m=) is a transient that exposes
+every option — backend, model, system prompt, scope — at point.
+
+We register Anthropic Claude as the default backend.  The API key is read from
+the =ANTHROPIC_API_KEY= environment variable at *request time* via a lambda, so
+the secret never lives in this file or in =config.el=.  Note that GUI Emacs on
+macOS doesn't inherit the shell environment, so that variable must be present in
+Doom's env snapshot (=doom sync --env= after exporting it in your shell) for
+=getenv= to see it — the same mechanism the =MACOS EXEC PATH= setup relies on.
+
+#+begin_src emacs-lisp
+(use-package! gptel
+  :commands (gptel gptel-send gptel-menu)
+  :init
+  (map! :leader
+        (:prefix ("L" . "llm/gptel")
+         :desc "Open chat buffer" "L" #'gptel
+         :desc "Send / stream"    "s" #'gptel-send
+         :desc "Transient menu"   "m" #'gptel-menu
+         :desc "Add context"      "a" #'gptel-add
+         :desc "Rewrite region"   "r" #'gptel-rewrite))
+  :config
+  ;; Anthropic backend; key pulled from the env at request time.
+  (gptel-make-anthropic "Claude"
+    :stream t
+    :key (lambda () (getenv "ANTHROPIC_API_KEY")))
+  (setq gptel-default-mode 'org-mode
+        gptel-model 'claude-sonnet-4-5
+        gptel-backend (gptel-get-backend "Claude")))
 #+end_src

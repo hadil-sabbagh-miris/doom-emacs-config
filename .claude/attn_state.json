@@ -1,25 +1,25 @@
 {
   "scores": {
-    "systems/legion.md": 0.32057708828124987,
+    "systems/legion.md": 0.0742510862360639,
     "systems/asus.md": 0.0,
-    "systems/orin.md": 0.32057708828124987,
-    "systems/pi5.md": 0.11220198089843748,
+    "systems/orin.md": 0.0742510862360639,
+    "systems/pi5.md": 0.025987880182622367,
     "systems/network.md": 0.35,
-    "modules/pipeline.md": 0.08165840616499996,
-    "modules/intelligence.md": 0.052834401164999975,
-    "modules/gto-adapters.md": 0.028824004999999986,
+    "modules/pipeline.md": 0.003295211230628784,
+    "modules/intelligence.md": 0.00213205866069275,
+    "modules/gto-adapters.md": 0.001163152569936034,
     "modules/es-ac.md": 0.0,
-    "modules/t3-telos.md": 0.08235429999999996,
+    "modules/t3-telos.md": 0.003323293056960097,
     "modules/t3-telos/trajectories/convergent.md": 0.0,
     "modules/t3-telos/trajectories/divergent.md": 0.0,
     "modules/t3-telos/trajectories/oscillatory.md": 0.0,
     "modules/t3-telos/primitives.md": 0.0,
     "modules/cvmp-transformer.md": 0.0,
-    "modules/anticipatory-coherence.md": 0.08235429999999996,
-    "modules/ppe-anticipatory-coherence.md": 0.08235429999999996,
-    "integrations/pipe-to-orin.md": 0.2097152000000001,
-    "integrations/img-to-asus.md": 0.15795748864000006
+    "modules/anticipatory-coherence.md": 0.003323293056960097,
+    "modules/ppe-anticipatory-coherence.md": 0.003323293056960097,
+    "integrations/pipe-to-orin.md": 0.028147497671065627,
+    "integrations/img-to-asus.md": 0.021200695245846626
   },
-  "turn_count": 27,
-  "last_update": "2026-07-05T11:52:42.771219"
+  "turn_count": 36,
+  "last_update": "2026-07-05T12:52:28.259455"
 }
