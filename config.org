@@ -36,8 +36,15 @@
 ;; See 'C-h v doom-font' for documentation and more examples of what they
 ;; accept. For example:
 ;;
-(setq doom-font (font-spec :family "Fira Code" :size 14 :weight 'semi-light)
-      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 14))
+(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
+      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 12)
+      doom-big-font (font-spec :family "Fira Code" :size 20))
+(after! doom-themes
+  (setq doom-themes-enable-bold t
+        doom-themes-enable-italic t))
+(custom-set-faces!
+  '(font-lock-comment-face :slant italic)
+  '(font-lock-keyword-face :slant italic))
 #+end_src
 
 ** DOOM
@@ -1678,7 +1685,7 @@ ERC is a built-in Emacs IRC client.
 
 
 ** MU4E
-mu4e is a Gmail-backed mail client.  It only *reads* a local Maildir; the ~mbsync~ (isync) command in ~mu4e-get-mail-command~ pulls IMAP into ~~/.mail/gmail~, and ~msmtp~ sends.  Credentials for both live in the macOS Keychain (see ~~/.mbsyncrc~ and ~~/.msmtprc~), so no App Password is stored in plain text.  The ~+gmail~ module flag makes archive/trash defer to Gmail's own semantics.  Open the mail dashboard with 'SPC o m'.
+mu4e is a Gmail/Workspace-backed mail client for =h.sabbagh@miris.com=.  It only *reads* a local Maildir; the ~mbsync~ (isync) command in ~mu4e-get-mail-command~ pulls IMAP into ~~/.mail/miris~, and ~msmtp~ sends.  Both authenticate with *OAuth2* (no App Password): =mutt_oauth2.py= (in ~~/.local/bin~) prints a fresh access token from a GPG-encrypted token store, called via ~PassCmd~ in ~~/.mbsyncrc~ and ~passwordeval~ in ~~/.msmtprc~.  The ~+gmail~ module flag makes archive/trash defer to Gmail's own semantics.  Open the mail dashboard with 'SPC o m'.
 
 | COMMAND | DESCRIPTION       | KEYBINDING |
 |---------+-------------------+------------|
@@ -1706,22 +1713,22 @@ mu4e is a Gmail-backed mail client.  It only *reads* a local Maildir; the ~mbsyn
     (add-to-list 'Info-directory-list "/opt/homebrew/share/info")))
 
 (after! mu4e
-  (setq mu4e-maildir "~/.mail/gmail"
-        mu4e-get-mail-command "mbsync gmail"
+  (setq mu4e-maildir "~/.mail/miris"
+        mu4e-get-mail-command "mbsync miris"
         mu4e-update-interval 300              ; auto-fetch every 5 minutes
         mu4e-index-cleanup t
         mu4e-index-lazy-check t
         mu4e-change-filenames-when-moving t   ; required for mbsync
         mu4e-context-policy 'pick-first
         ;; Identity
-        user-mail-address "hadilsabbagh18@gmail.com"
+        user-mail-address "h.sabbagh@miris.com"
         user-full-name "Hadil Sabbagh"
         ;; Gmail's special folders (the +gmail flag handles the rest)
         mu4e-sent-folder   "/[Gmail]/Sent Mail"
         mu4e-drafts-folder "/[Gmail]/Drafts"
         mu4e-trash-folder  "/[Gmail]/Trash"
         mu4e-refile-folder "/[Gmail]/All Mail"
-        ;; Send via the installed msmtp binary (reads Keychain, see ~/.msmtprc)
+        ;; Send via the installed msmtp binary (OAuth2, see ~/.msmtprc)
         sendmail-program (executable-find "msmtp")
         send-mail-function #'smtpmail-send-it
         message-sendmail-f-is-evil t
